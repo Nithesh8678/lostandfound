@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { MapPin, Upload, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { submitFoundItem } from "@/src/utils/blockchain";
 
 export default function ReportFoundPage() {
   const router = useRouter();
@@ -53,11 +54,19 @@ export default function ReportFoundPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // Redirect to dashboard
-    router.push("/dashboard");
+    try {
+      await submitFoundItem(
+        formData.name,
+        formData.description,
+        formData.location,
+        "", // No photo for now
+        () => {} // Empty update function since we'll redirect anyway
+      );
+      // Redirect is handled in the submitFoundItem function
+    } catch (error) {
+      console.error("Error submitting found item:", error);
+      setIsSubmitting(false);
+    }
   };
 
   return (

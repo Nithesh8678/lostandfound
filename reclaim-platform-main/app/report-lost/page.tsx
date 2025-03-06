@@ -27,6 +27,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { MapPin, Upload, AlertCircle, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { submitLostItem } from "@/src/utils/blockchain";
 
 export default function ReportLostPage() {
   const router = useRouter();
@@ -65,11 +66,18 @@ export default function ReportLostPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // Redirect to dashboard
-    router.push("/dashboard");
+    try {
+      await submitLostItem(
+        formData.name,
+        formData.description,
+        formData.lastLocation,
+        () => {} // Empty update function since we'll redirect anyway
+      );
+      // Redirect is handled in the submitLostItem function
+    } catch (error) {
+      console.error("Error submitting lost item:", error);
+      setIsSubmitting(false);
+    }
   };
 
   return (

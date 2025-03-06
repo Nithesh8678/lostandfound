@@ -19,68 +19,14 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IMAGES } from "@/lib/constants";
+import { fetchLostItems, fetchFoundItems } from "@/src/utils/blockchain";
+import { useEffect, useState } from "react";
 
 // Initialize Montserrat font
 const montserrat = Montserrat({
   subsets: ["latin"],
   display: "swap",
 });
-
-// Update the mock data with real images
-const lostItems = [
-  {
-    id: "1",
-    name: "Blue Backpack",
-    description: "Navy blue Northface backpack with laptop inside",
-    location: "Central Park, New York",
-    date: "2023-03-01",
-    status: "active",
-    bounty: 50,
-    image: IMAGES.LOST_ITEMS.BACKPACK,
-  },
-  {
-    id: "2",
-    name: "iPhone 14 Pro",
-    description: "Black iPhone with red case, slightly scratched screen",
-    location: "Starbucks on 5th Avenue",
-    date: "2023-03-05",
-    status: "matched",
-    bounty: 100,
-    image: IMAGES.LOST_ITEMS.PHONE,
-  },
-  {
-    id: "3",
-    name: "Car Keys",
-    description: "Toyota car keys with a rabbit foot keychain",
-    location: "Gym locker room",
-    date: "2023-03-10",
-    status: "recovered",
-    bounty: 25,
-    image: IMAGES.LOST_ITEMS.KEYS,
-  },
-];
-
-// Update the mock data with real images
-const foundItems = [
-  {
-    id: "1",
-    name: "Wallet",
-    description: "Brown leather wallet with initials 'JD'",
-    location: "Bus Stop on Main Street",
-    date: "2023-03-02",
-    status: "reported",
-    image: IMAGES.LOST_ITEMS.WALLET,
-  },
-  {
-    id: "2",
-    name: "Umbrella",
-    description: "Black umbrella with wooden handle",
-    location: "Coffee shop downtown",
-    date: "2023-03-07",
-    status: "matched",
-    image: IMAGES.LOST_ITEMS.UMBRELLA,
-  },
-];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -128,6 +74,28 @@ const FloatingIcon = ({ Icon, index }: { Icon: LucideIcon; index: number }) => (
 
 export default function DashboardPage() {
   const floatingIcons = [Hexagon, CircuitBoard, Box];
+  const [lostItems, setLostItems] = useState<any[]>([]);
+  const [foundItems, setFoundItems] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const [lost, found] = await Promise.all([
+          fetchLostItems(),
+          fetchFoundItems(),
+        ]);
+        setLostItems(lost);
+        setFoundItems(found);
+      } catch (error) {
+        console.error("Error fetching items:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchItems();
+  }, []);
 
   return (
     <div
@@ -198,7 +166,22 @@ export default function DashboardPage() {
             </TabsList>
             <AnimatePresence mode="wait">
               <TabsContent value="lost" className="space-y-4">
-                {lostItems.length === 0 ? (
+                {isLoading ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                  >
+                    <Card className="border-primary/20 bg-black/40 backdrop-blur-xl">
+                      <CardContent className="flex flex-col items-center justify-center py-12">
+                        <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+                        <p className="text-lg font-medium mb-2">
+                          Loading items...
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ) : lostItems.length === 0 ? (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -236,85 +219,47 @@ export default function DashboardPage() {
                       >
                         <Card className="overflow-hidden border-primary/20 bg-black/40 backdrop-blur-xl hover:bg-black/50 transition-all duration-300">
                           <div className="flex flex-col md:flex-row">
-                            <div className="relative w-full md:w-[100px] h-[100px] overflow-hidden">
-                              <Image
-                                src={item.image}
-                                alt={item.name}
-                                fill
-                                className="object-cover transition-transform duration-300 group-hover:scale-110"
-                              />
+                            <div className="relative w-full md:w-[100px] h-[100px] overflow-hidden bg-primary/10 flex items-center justify-center">
+                              <Search className="h-8 w-8 text-primary/50" />
                               <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                             </div>
                             <div className="flex-1 p-6">
                               <div className="flex flex-col md:flex-row justify-between">
                                 <div>
-                                  <div className="flex items-center gap-2">
-                                    <h3 className="font-semibold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-white/80">
-                                      {item.name}
-                                    </h3>
-                                    {item.status === "active" && (
-                                      <Badge
-                                        variant="outline"
-                                        className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 animate-pulse"
-                                      >
-                                        Active
-                                      </Badge>
-                                    )}
-                                    {item.status === "matched" && (
-                                      <Badge
-                                        variant="outline"
-                                        className="bg-blue-500/10 text-blue-500 border-blue-500/20"
-                                      >
-                                        Potential Match
-                                      </Badge>
-                                    )}
-                                    {item.status === "recovered" && (
-                                      <Badge
-                                        variant="outline"
-                                        className="bg-green-500/10 text-green-500 border-green-500/20"
-                                      >
-                                        Recovered
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <p className="text-muted-foreground mt-1">
+                                  <h3 className="text-lg font-semibold mb-2">
+                                    {item.name}
+                                  </h3>
+                                  <p className="text-muted-foreground text-sm mb-4">
                                     {item.description}
                                   </p>
+                                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                    <div className="flex items-center gap-1">
+                                      <MapPin className="h-4 w-4" />
+                                      {item.location}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-4 w-4" />
+                                      {item.date}
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-4 mt-4 md:mt-0">
-                                  <motion.div
-                                    className="flex items-center text-primary"
-                                    whileHover={{ scale: 1.05 }}
+                                <div className="mt-4 md:mt-0 flex flex-col items-end gap-2">
+                                  <Badge
+                                    variant={
+                                      item.status === "found"
+                                        ? "default"
+                                        : item.status === "matched"
+                                        ? "secondary"
+                                        : "outline"
+                                    }
+                                    className="capitalize"
                                   >
-                                    <DollarSign className="h-4 w-4 mr-1" />
-                                    <span>{item.bounty} USD</span>
-                                  </motion.div>
-                                  <Link href={`/items/lost/${item.id}`}>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="border-primary/20 hover:border-primary/40 backdrop-blur-sm"
-                                    >
-                                      View Details
-                                    </Button>
-                                  </Link>
-                                </div>
-                              </div>
-                              <div className="flex flex-col md:flex-row gap-4 mt-4 text-sm text-muted-foreground">
-                                <div className="flex items-center">
-                                  <MapPin className="h-4 w-4 mr-1 text-primary" />
-                                  <span>{item.location}</span>
-                                </div>
-                                <div className="flex items-center">
-                                  <Clock className="h-4 w-4 mr-1 text-primary" />
-                                  <span>
-                                    {new Date(item.date).toLocaleDateString()}
-                                  </span>
+                                    {item.status}
+                                  </Badge>
                                 </div>
                               </div>
                             </div>
                           </div>
-                          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300" />
                         </Card>
                       </motion.div>
                     ))}
@@ -322,7 +267,22 @@ export default function DashboardPage() {
                 )}
               </TabsContent>
               <TabsContent value="found" className="space-y-4">
-                {foundItems.length === 0 ? (
+                {isLoading ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                  >
+                    <Card className="border-primary/20 bg-black/40 backdrop-blur-xl">
+                      <CardContent className="flex flex-col items-center justify-center py-12">
+                        <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+                        <p className="text-lg font-medium mb-2">
+                          Loading items...
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ) : foundItems.length === 0 ? (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}

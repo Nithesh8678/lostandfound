@@ -10,8 +10,17 @@ import DisputeResolutionABI from "../../../blockchain/artifacts/contracts/Disput
 
 // TypeScript Interface for Blockchain Contract
 interface BlockchainContract {
-  submitLostItem: (name: string, description: string, location: string) => Promise<void>;
-  submitFoundItem: (name: string, description: string, location: string, photo: string) => Promise<void>;
+  submitLostItem: (
+    name: string,
+    description: string,
+    location: string
+  ) => Promise<void>;
+  submitFoundItem: (
+    name: string,
+    description: string,
+    location: string,
+    photo: string
+  ) => Promise<void>;
   claimBounty: (itemId: string) => Promise<void>;
 }
 
@@ -37,6 +46,17 @@ const getEthereumContract = async (
   }
 };
 
+// Function to create IPFS-like hash from item data
+const createItemHash = (
+  name: string,
+  description: string,
+  location: string
+) => {
+  // For now, we'll create a simple concatenated string as a mock IPFS hash
+  // In a real implementation, this would upload to IPFS and return a hash
+  return Buffer.from(`${name}::${description}::${location}`).toString("base64");
+};
+
 // Function to Submit a Lost Item
 export const submitLostItem = async (
   name: string,
@@ -51,17 +71,17 @@ export const submitLostItem = async (
     );
     if (!contract) return;
 
-    const tx = await contract.submitLostItem(name, description, location);
-    const receipt = await tx.wait(); // Wait for confirmation
+    // Create a hash of the item data
+    const ipfsHash = createItemHash(name, description, location);
+
+    // Call the contract with just the hash
+    const tx = await contract.submitLostItem(ipfsHash);
+    const receipt = await tx.wait();
 
     if (receipt.status === 1) {
       console.log("Lost item submitted successfully!");
       alert("Lost item submitted successfully!");
-
-      // Update frontend state with the new item or make an API call to fetch updated items
-      updateState(); // Call a function to update your state or trigger a UI update
-
-      window.location.href = "/dashboard"; // Redirect to dashboard or update UI
+      window.location.href = "/dashboard";
     } else {
       console.error("Transaction failed");
       alert("Failed to submit lost item.");
@@ -87,17 +107,17 @@ export const submitFoundItem = async (
     );
     if (!contract) return;
 
-    const tx = await contract.submitFoundItem(name, description, location, photo);
-    const receipt = await tx.wait(); // Wait for confirmation
+    // Create a hash of the item data
+    const ipfsHash = createItemHash(name, description, location);
+
+    // Call the contract with just the hash
+    const tx = await contract.submitFoundItem(ipfsHash);
+    const receipt = await tx.wait();
 
     if (receipt.status === 1) {
       console.log("Found item submitted successfully!");
       alert("Found item submitted successfully!");
-
-      // Update frontend state with the new item or make an API call to fetch updated items
-      updateState(); // Call a function to update your state or trigger a UI update
-
-      window.location.href = "/dashboard"; // Redirect to dashboard or update UI
+      window.location.href = "/dashboard";
     } else {
       console.error("Transaction failed");
       alert("Failed to submit found item.");
@@ -131,5 +151,87 @@ export const claimBounty = async (itemId: string) => {
   } catch (error) {
     console.error("Error claiming bounty:", error);
     alert("An error occurred while claiming the bounty.");
+  }
+};
+
+// Function to parse item hash back into data
+const parseItemHash = (ipfsHash: string) => {
+  try {
+    const decoded = Buffer.from(ipfsHash, "base64").toString();
+    const [name, description, location] = decoded.split("::");
+    return { name, description, location };
+  } catch (error) {
+    console.error("Error parsing item hash:", error);
+    return {
+      name: "Unknown",
+      description: "Error parsing data",
+      location: "Unknown",
+    };
+  }
+};
+
+// Function to Fetch Lost Items
+export const fetchLostItems = async (): Promise<any[]> => {
+  try {
+    const contract = await getEthereumContract(
+      LOST_AND_FOUND_ADDRESS,
+      LostAndFoundABI.abi
+    );
+    if (!contract) return [];
+
+    // Get all items for the current user
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const userAddress = await signer.getAddress();
+    const userItems = await contract.getUserItems(userAddress);
+
+    // Get details for each item
+    const items = await Promise.all(
+      userItems.map(async (itemId: number) => {
+        const item = await contract.items(itemId);
+        const { name, description, location } = parseItemHash(item.ipfsHash);
+
+        return {
+          id: itemId.toString(),
+          name,
+          description,
+          location,
+          date: new Date().toISOString().split("T")[0], // For now using current date
+          status: item.isFound ? "found" : "active",
+          owner: item.owner,
+          finder: item.finder,
+        };
+      })
+    );
+
+    return items;
+  } catch (error) {
+    console.error("Error fetching lost items:", error);
+    return [];
+  }
+};
+
+// Function to Fetch Found Items
+export const fetchFoundItems = async (): Promise<any[]> => {
+  try {
+    const contract = await getEthereumContract(
+      LOST_AND_FOUND_ADDRESS,
+      LostAndFoundABI.abi
+    );
+    if (!contract) return [];
+
+    const items = await contract.getFoundItems();
+    return items.map((item: any) => ({
+      id: item.id.toString(),
+      name: item.name,
+      description: item.description,
+      location: item.location,
+      date: new Date(item.timestamp * 1000).toISOString().split("T")[0],
+      status: item.status,
+      photo: item.photo,
+    }));
+  } catch (error) {
+    console.error("Error fetching found items:", error);
+    return [];
   }
 };

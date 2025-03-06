@@ -3,7 +3,14 @@
 import * as React from "react";
 import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
-import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
+import {
+  mainnet,
+  polygon,
+  optimism,
+  arbitrum,
+  base,
+  sepolia,
+} from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import "@rainbow-me/rainbowkit/styles.css";
@@ -11,7 +18,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 const config = getDefaultConfig({
   appName: "Reclaim Platform",
   projectId: "8298b914c7d99a968ed7f53c4a719c3d", // Get this from https://cloud.walletconnect.com
-  chains: [mainnet, polygon, optimism, arbitrum, base],
+  chains: [mainnet, polygon, optimism, arbitrum, base, sepolia],
   ssr: true,
 });
 
