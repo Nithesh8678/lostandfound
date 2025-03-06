@@ -77,7 +77,7 @@ export default function HowItWorks() {
   };
 
   return (
-    <section className="w-full py-12 md:py-24 relative overflow-hidden bg-gradient-to-b from-background to-background/80">
+    <section className="w-full py-12 md:py-24 relative overflow-hidden ">
       {/* Background image with overlay */}
       <div className="absolute inset-0 opacity-10">
         <Image
@@ -88,7 +88,7 @@ export default function HowItWorks() {
           priority
         />
       </div>
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-background/95 to-background" />
+      <div className="absolute inset-0 " />
 
       <motion.div
         className="container px-4 md:px-6 relative z-10"

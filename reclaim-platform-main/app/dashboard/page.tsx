@@ -99,7 +99,7 @@ export default function DashboardPage() {
 
   return (
     <div
-      className={`min-h-screen w-full bg-gradient-to-b from-background via-background/95 to-background relative overflow-hidden ${montserrat.className}`}
+      className={`min-h-screen w-full mt-16 bg-gradient-to-b from-background via-background/95 to-background relative overflow-hidden ${montserrat.className}`}
     >
       {/* Animated background elements */}
       <div className="absolute inset-0 bg-grid-white/5 [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]" />
