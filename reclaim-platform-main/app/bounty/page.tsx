@@ -61,7 +61,7 @@ type LostItem = {
   date: string;
   status: string;
   owner: string;
-  reward?: string;
+  reward: string;
 };
 
 export default function BountyPage() {
@@ -97,7 +97,7 @@ export default function BountyPage() {
       console.log("Please install MetaMask to view lost items");
       setIsLoading(false);
     }
-  }, []);
+  }, [address]);
 
   useEffect(() => {
     let filtered = [...items];
@@ -362,7 +362,7 @@ export default function BountyPage() {
                         </div>
                         <Badge
                           variant={
-                            item.status === "active" ? "default" : "outline"
+                            item.status === "active" ? "default" : "secondary"
                           }
                           className="capitalize"
                         >
@@ -380,7 +380,7 @@ export default function BountyPage() {
                             {item.date}
                           </div>
                         </div>
-                        {item.reward && (
+                        {parseFloat(item.reward) > 0 && (
                           <div className="flex items-center gap-2">
                             <DollarSign className="h-4 w-4 text-green-500" />
                             <span className="text-green-500 font-medium">
@@ -388,10 +388,17 @@ export default function BountyPage() {
                             </span>
                           </div>
                         )}
-                        <Button className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 group">
-                          <Trophy className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />
-                          Claim Bounty
-                        </Button>
+                        {item.status === "active" && (
+                          <Button
+                            className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 group"
+                            onClick={() =>
+                              window.alert("Bounty claiming coming soon!")
+                            }
+                          >
+                            <Trophy className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />
+                            Claim Bounty
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

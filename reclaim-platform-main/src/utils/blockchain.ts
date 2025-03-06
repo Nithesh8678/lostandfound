@@ -88,21 +88,41 @@ export const submitLostItem = async (
   updateState: Function
 ) => {
   try {
+    console.log("Submitting lost item...");
+    console.log("Item details:", { name, description, location });
+
     const contract = await getEthereumContract(
       LOST_AND_FOUND_ADDRESS,
       LostAndFoundABI.abi
     );
-    if (!contract) return;
+    if (!contract) {
+      console.error("Failed to connect to contract");
+      return;
+    }
 
     // Create a hash of the item data
     const ipfsHash = createItemHash(name, description, location);
+    console.log("Created IPFS hash:", ipfsHash);
 
     // Call the contract with just the hash
+    console.log("Sending transaction to contract...");
     const tx = await contract.submitLostItem(ipfsHash);
+    console.log("Transaction sent:", tx.hash);
+
+    console.log("Waiting for transaction confirmation...");
     const receipt = await tx.wait();
+    console.log("Transaction receipt:", receipt);
 
     if (receipt.status === 1) {
       console.log("Lost item submitted successfully!");
+      // Get the itemId from the event logs
+      const event = receipt.logs.find(
+        (log: any) => log.eventName === "ItemSubmitted"
+      );
+      if (event) {
+        const itemId = event.args[0];
+        console.log("New item ID:", itemId.toString());
+      }
       alert("Lost item submitted successfully!");
       window.location.href = "/dashboard";
     } else {
@@ -277,44 +297,82 @@ export const fetchAllLostItems = async (): Promise<any[]> => {
     const itemCount = await contract.itemIdCounter();
     console.log("Total items:", Number(itemCount));
 
-    if (Number(itemCount) <= 1) {
-      console.log("No items found");
-      return [];
-    }
-
+    // Get all items from the contract
     console.log("Fetching items...");
-    const items = await Promise.all(
-      Array.from({ length: Number(itemCount) - 1 }, (_, i) => i + 1).map(
-        async (itemId) => {
-          try {
-            console.log(`Fetching item ${itemId}...`);
-            const item = await contract.items(itemId);
-            const { name, description, location } = parseItemHash(
-              item.ipfsHash
-            );
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const network = await provider.getNetwork();
+    console.log("Current network:", network.chainId);
+    console.log("Contract address:", LOST_AND_FOUND_ADDRESS);
 
-            return {
-              id: itemId.toString(),
-              name,
-              description,
-              location,
-              date: new Date().toISOString().split("T")[0],
-              status: item.isFound ? "found" : "active",
-              owner: item.owner,
-              finder: item.finder,
-              reward: "0.5", // Placeholder reward amount
-            };
-          } catch (error) {
-            console.error(`Error fetching item ${itemId}:`, error);
+    // Start from index 1 since 0 is not used
+    const itemIds = Array.from({ length: Number(itemCount) }, (_, i) => i + 1);
+    console.log("Item IDs to fetch:", itemIds);
+
+    const items = await Promise.all(
+      itemIds.map(async (itemId) => {
+        try {
+          console.log(`Fetching item ${itemId}...`);
+          const item = await contract.items(itemId);
+          console.log(`Raw item ${itemId} data:`, item);
+
+          // Skip items with empty owner (means item doesn't exist)
+          if (item.owner === "0x0000000000000000000000000000000000000000") {
+            console.log(`Item ${itemId} has no owner, skipping`);
             return null;
           }
+
+          // Skip items with empty ipfsHash
+          if (!item.ipfsHash || item.ipfsHash === "") {
+            console.log(`Item ${itemId} has no ipfsHash, skipping`);
+            return null;
+          }
+
+          const { name, description, location } = parseItemHash(item.ipfsHash);
+          console.log(`Decoded item ${itemId}:`, {
+            name,
+            description,
+            location,
+          });
+
+          // Get bounty amount if available
+          let reward = "0";
+          try {
+            const bountyContract = await getEthereumContract(
+              BOUNTY_ESCROW_ADDRESS,
+              BountyEscrowABI.abi
+            );
+            if (bountyContract) {
+              const bounty = await bountyContract.bounties(itemId);
+              if (bounty && bounty.amount) {
+                reward = ethers.formatEther(bounty.amount);
+              }
+            }
+          } catch (error) {
+            console.log(`No bounty found for item ${itemId}`);
+          }
+
+          return {
+            id: itemId.toString(),
+            name,
+            description,
+            location,
+            date: new Date().toISOString().split("T")[0],
+            status: item.isFound ? "found" : "active",
+            owner: item.owner,
+            finder: item.finder,
+            reward,
+          };
+        } catch (error) {
+          console.error(`Error fetching item ${itemId}:`, error);
+          return null;
         }
-      )
+      })
     );
 
     // Filter out any null items from failed fetches
     const validItems = items.filter((item) => item !== null);
     console.log("Successfully fetched items:", validItems.length);
+    console.log("Valid items:", validItems);
     return validItems;
   } catch (error) {
     console.error("Error in fetchAllLostItems:", error);
