@@ -36,12 +36,35 @@ const getEthereumContract = async (
   contractAddress: string,
   contractABI: any
 ): Promise<ethers.Contract | null> => {
-  if (typeof window.ethereum !== "undefined") {
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    return new ethers.Contract(contractAddress, contractABI, signer);
-  } else {
-    alert("Please install MetaMask!");
+  try {
+    if (typeof window.ethereum !== "undefined") {
+      console.log("Connecting to Ethereum provider...");
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      console.log("Getting signer...");
+      const signer = await provider.getSigner();
+      console.log("Creating contract instance...");
+      const contract = new ethers.Contract(
+        contractAddress,
+        contractABI,
+        signer
+      );
+
+      // Verify contract deployment
+      console.log("Verifying contract deployment...");
+      const code = await provider.getCode(contractAddress);
+      if (code === "0x") {
+        console.error("Contract not deployed at address:", contractAddress);
+        return null;
+      }
+
+      console.log("Contract connected successfully");
+      return contract;
+    } else {
+      console.error("Please install MetaMask!");
+      return null;
+    }
+  } catch (error) {
+    console.error("Error connecting to contract:", error);
     return null;
   }
 };
@@ -232,6 +255,69 @@ export const fetchFoundItems = async (): Promise<any[]> => {
     }));
   } catch (error) {
     console.error("Error fetching found items:", error);
+    return [];
+  }
+};
+
+// Function to Fetch All Lost Items (from all users)
+export const fetchAllLostItems = async (): Promise<any[]> => {
+  try {
+    console.log("Connecting to contract...");
+    const contract = await getEthereumContract(
+      LOST_AND_FOUND_ADDRESS,
+      LostAndFoundABI.abi
+    );
+    if (!contract) {
+      console.error("Failed to connect to contract");
+      return [];
+    }
+
+    // Get all items from the contract
+    console.log("Getting item count...");
+    const itemCount = await contract.itemIdCounter();
+    console.log("Total items:", Number(itemCount));
+
+    if (Number(itemCount) <= 1) {
+      console.log("No items found");
+      return [];
+    }
+
+    console.log("Fetching items...");
+    const items = await Promise.all(
+      Array.from({ length: Number(itemCount) - 1 }, (_, i) => i + 1).map(
+        async (itemId) => {
+          try {
+            console.log(`Fetching item ${itemId}...`);
+            const item = await contract.items(itemId);
+            const { name, description, location } = parseItemHash(
+              item.ipfsHash
+            );
+
+            return {
+              id: itemId.toString(),
+              name,
+              description,
+              location,
+              date: new Date().toISOString().split("T")[0],
+              status: item.isFound ? "found" : "active",
+              owner: item.owner,
+              finder: item.finder,
+              reward: "0.5", // Placeholder reward amount
+            };
+          } catch (error) {
+            console.error(`Error fetching item ${itemId}:`, error);
+            return null;
+          }
+        }
+      )
+    );
+
+    // Filter out any null items from failed fetches
+    const validItems = items.filter((item) => item !== null);
+    console.log("Successfully fetched items:", validItems.length);
+    return validItems;
+  } catch (error) {
+    console.error("Error in fetchAllLostItems:", error);
     return [];
   }
 };

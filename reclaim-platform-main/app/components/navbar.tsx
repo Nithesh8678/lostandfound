@@ -5,6 +5,16 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { LayoutDashboard, ChevronDown, Wallet } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const Navbar = () => {
   const { scrollY } = useScroll();
@@ -34,7 +44,7 @@ const Navbar = () => {
   }, []);
 
   const navLinks = [
-    { href: "/dashboard", label: "Dashboard" },
+    { href: "/bounty", label: "Bounty" },
     { href: "/report-lost", label: "Report Lost" },
     { href: "/report-found", label: "Report Found" },
     { href: "/how-it-works", label: "How It Works" },
@@ -77,7 +87,7 @@ const Navbar = () => {
           ))}
         </div>
 
-        {/* Desktop Connect Button */}
+        {/* Desktop Connect Button with Dropdown */}
         <div className="hidden md:block">
           <ConnectButton.Custom>
             {({
@@ -110,42 +120,51 @@ const Navbar = () => {
                           variant={isScrolled ? "default" : "secondary"}
                           className="transition-colors rounded-full"
                         >
+                          <Wallet className="mr-2 h-4 w-4" />
                           Connect Wallet
                         </Button>
                       );
                     }
 
                     return (
-                      <div className="flex items-center gap-2">
-                        <Button
-                          onClick={openChainModal}
-                          variant="outline"
-                          className={`transition-colors rounded-full ${
-                            isScrolled ? "text-white" : "text-white"
-                          }`}
-                        >
-                          {chain.hasIcon && (
-                            <div className="mr-2">
-                              {chain.iconUrl && (
-                                <img
-                                  alt={chain.name ?? "Chain icon"}
-                                  src={chain.iconUrl}
-                                  className="h-4 w-4"
-                                />
-                              )}
-                            </div>
-                          )}
-                          {chain.name}
-                        </Button>
-
-                        <Button
-                          onClick={openAccountModal}
-                          variant={isScrolled ? "default" : "secondary"}
-                          className="transition-colors rounded-full"
-                        >
-                          {account.displayName}
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant={isScrolled ? "default" : "secondary"}
+                            className="transition-colors rounded-full"
+                          >
+                            {account.displayName}
+                            <ChevronDown className="ml-2 h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={openChainModal}
+                            className="gap-2"
+                          >
+                            {chain.hasIcon && chain.iconUrl && (
+                              <img
+                                alt={chain.name ?? "Chain icon"}
+                                src={chain.iconUrl}
+                                className="h-4 w-4"
+                              />
+                            )}
+                            {chain.name}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href="/dashboard" className="gap-2">
+                              <LayoutDashboard className="h-4 w-4" />
+                              Dashboard
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={openAccountModal}>
+                            Wallet Settings
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     );
                   })()}
                 </div>
