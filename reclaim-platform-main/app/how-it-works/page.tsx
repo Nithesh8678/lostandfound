@@ -36,9 +36,9 @@ export default function HowItWorksPage() {
     },
     {
       icon: <Sparkles className="h-12 w-12 text-primary" />,
-      title: "AI-Powered Matching",
+      title: "Location Matching",
       description:
-        "Our AI matches lost items with found reports using image recognition and text analysis. This ensures accurate and faster item identification even with vague descriptions.",
+        "Our location matches lost items with found reports using image recognition and text analysis. This ensures accurate and faster item identification even with vague descriptions.",
       image: IMAGES.HOW_IT_WORKS.AI_MATCHING,
     },
     {

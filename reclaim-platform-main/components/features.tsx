@@ -30,7 +30,7 @@ const features = [
   {
     icon: <Zap className="h-8 w-8" />,
     techIcon: <Cpu className="h-6 w-6" />,
-    title: "AI Matching",
+    title: "Location Matching",
     description:
       "Advanced algorithms ensure accurate and faster item identification and matching.",
     color: "from-cyan-500 to-blue-400",

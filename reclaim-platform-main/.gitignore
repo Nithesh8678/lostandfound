@@ -17,7 +17,7 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
-.env*
+
 
 # vercel
 .vercel
@@ -29,7 +29,7 @@ next-env.d.ts
 # .gitignore
 
 # Ignore environment files
-.env
+
 
 # Ignore node_modules directory
 node_modules/

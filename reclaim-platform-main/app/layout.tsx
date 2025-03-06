@@ -3,10 +3,10 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-// import Header from "@/components/header"
 import Footer from "@/components/footer";
 import localFont from "next/font/local";
 import { Providers } from "./providers";
+import Navbar from "./components/navbar";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -49,7 +49,6 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <div className="flex min-h-screen flex-col">
-              {/* <Header /> */}
               <Navbar />
               <main className="flex-1">{children}</main>
               <Footer />
@@ -60,6 +59,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-import "./globals.css";
-import Navbar from "./components/navbar";

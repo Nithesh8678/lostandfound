@@ -87,25 +87,46 @@ export default function DashboardPage() {
   const [copiedAddress, setCopiedAddress] = useState(false);
   const { address } = useAccount();
 
-  useEffect(() => {
-    const fetchItems = async () => {
-      try {
-        const [lost, found] = await Promise.all([
-          fetchLostItems(),
-          fetchFoundItems(),
-        ]);
-        setLostItems(lost);
-        setFoundItems(found);
-      } catch (error) {
-        console.error("Error fetching items:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchItems = async () => {
+    try {
+      const [lost, found] = await Promise.all([
+        fetchLostItems(),
+        fetchFoundItems(),
+      ]);
+      setLostItems(lost);
+      setFoundItems(found);
+    } catch (error) {
+      console.error("Error fetching items:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (address) {
       fetchItems();
     }
+  }, [address]);
+
+  // Add notification listener to refresh items when status changes
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "notifications") {
+        // Refresh items when notifications change
+        fetchItems();
+      }
+    };
+
+    // Listen for changes in localStorage
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also set up an interval to check for updates
+    const interval = setInterval(fetchItems, 5000);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
   }, [address]);
 
   const copyAddress = () => {

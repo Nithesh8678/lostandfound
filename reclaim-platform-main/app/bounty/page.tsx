@@ -61,7 +61,9 @@ type LostItem = {
   date: string;
   status: string;
   owner: string;
+  finder: string;
   reward: string;
+  ipfsHash: string;
 };
 
 export default function BountyPage() {
@@ -79,25 +81,36 @@ export default function BountyPage() {
   useEffect(() => {
     const fetchItems = async () => {
       try {
+        setIsLoading(true);
         console.log("Fetching lost items...");
         const allItems = await fetchAllLostItems();
         console.log("Fetched items:", allItems);
+
+        if (allItems.length === 0) {
+          console.log("No items found in the blockchain");
+        } else {
+          console.log(`Found ${allItems.length} items in the blockchain`);
+        }
+
         setItems(allItems);
         setFilteredItems(allItems);
       } catch (error) {
         console.error("Error fetching items:", error);
+        alert("Error fetching items. Please check console for details.");
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (typeof window !== "undefined" && window.ethereum) {
+    if (typeof window !== "undefined") {
+      if (!window.ethereum) {
+        console.log("Please install MetaMask to view lost items");
+        setIsLoading(false);
+        return;
+      }
       fetchItems();
-    } else {
-      console.log("Please install MetaMask to view lost items");
-      setIsLoading(false);
     }
-  }, [address]);
+  }, []);
 
   useEffect(() => {
     let filtered = [...items];
@@ -299,114 +312,115 @@ export default function BountyPage() {
         </AnimatePresence>
 
         {/* Items Grid */}
-        <motion.div variants={itemVariants}>
-          {isLoading ? (
-            <Card className="border-primary/20 bg-black/40 backdrop-blur-xl">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-                <p className="text-lg font-medium mb-2">Loading bounties...</p>
-                <p className="text-muted-foreground text-center">
-                  Connecting to blockchain and fetching lost items...
-                </p>
-              </CardContent>
-            </Card>
-          ) : items.length === 0 ? (
-            <Card className="border-primary/20 bg-black/40 backdrop-blur-xl">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Target className="h-12 w-12 text-primary mb-4" />
-                <p className="text-lg font-medium mb-2">
-                  No bounties available
-                </p>
-                <p className="text-muted-foreground text-center max-w-md mb-4">
-                  {!window.ethereum
-                    ? "Please install MetaMask to view lost items and bounties."
-                    : "There are currently no lost items reported. Check back later or report a lost item yourself."}
-                </p>
-                {window.ethereum && (
-                  <Link href="/report-lost">
-                    <Button>Report Lost Item</Button>
-                  </Link>
-                )}
-              </CardContent>
-            </Card>
-          ) : filteredItems.length === 0 ? (
-            <Card className="border-primary/20 bg-black/40 backdrop-blur-xl">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Target className="h-12 w-12 text-primary mb-4" />
-                <p className="text-lg font-medium mb-2">No bounties found</p>
-                <p className="text-muted-foreground text-center max-w-md mb-4">
-                  No items match your current filters. Try adjusting your search
-                  criteria.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredItems.map((item) => (
-                <motion.div
-                  key={item.id}
-                  variants={itemVariants}
-                  className="group relative"
+        {isLoading ? (
+          <Card className="border-primary/20 bg-black/40 backdrop-blur-xl">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+              <p className="text-lg font-medium mb-2">Loading bounties...</p>
+              <p className="text-muted-foreground text-center">
+                Connecting to blockchain and fetching lost items...
+              </p>
+            </CardContent>
+          </Card>
+        ) : !window.ethereum ? (
+          <Card className="border-primary/20 bg-black/40 backdrop-blur-xl">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Target className="h-12 w-12 text-primary mb-4" />
+              <p className="text-lg font-medium mb-2">MetaMask Required</p>
+              <p className="text-muted-foreground text-center max-w-md mb-4">
+                Please install MetaMask to view lost items and bounties.
+                <a
+                  href="https://metamask.io"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline ml-1"
                 >
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-purple-600 rounded-lg blur opacity-0 group-hover:opacity-100 transition duration-500" />
-                  <Card className="relative border-primary/20 bg-black/40 backdrop-blur-xl group-hover:border-primary/40 transition-all duration-300">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">
-                            {item.name}
-                          </h3>
-                          <p className="text-muted-foreground text-sm">
-                            {item.description}
-                          </p>
+                  Install MetaMask
+                </a>
+              </p>
+            </CardContent>
+          </Card>
+        ) : filteredItems.length === 0 ? (
+          <Card className="border-primary/20 bg-black/40 backdrop-blur-xl">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Target className="h-12 w-12 text-primary mb-4" />
+              <p className="text-lg font-medium mb-2">No bounties found</p>
+              <p className="text-muted-foreground text-center max-w-md mb-4">
+                {items.length === 0
+                  ? "There are currently no lost items reported. Check back later or report a lost item yourself."
+                  : "No items match your current filters. Try adjusting your search criteria."}
+              </p>
+              {items.length === 0 && (
+                <Link href="/report-lost">
+                  <Button>Report Lost Item</Button>
+                </Link>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredItems.map((item) => (
+              <motion.div
+                key={item.id}
+                variants={itemVariants}
+                className="group relative cursor-pointer"
+                onClick={() => (window.location.href = `/bounty/${item.id}`)}
+              >
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-purple-600 rounded-lg blur opacity-0 group-hover:opacity-100 transition duration-500" />
+                <Card className="relative border-primary/20 bg-black/40 backdrop-blur-xl hover:border-primary/40 transition-all duration-300">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors">
+                          {item.name}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {item.description}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          item.status === "active" ? "default" : "secondary"
+                        }
+                      >
+                        {item.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <MapPin className="mr-2 h-4 w-4" />
+                        {item.location}
+                      </div>
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Clock className="mr-2 h-4 w-4" />
+                        {item.date}
+                      </div>
+                      {parseFloat(item.reward) > 0 && (
+                        <div className="flex items-center text-sm text-primary">
+                          <DollarSign className="mr-2 h-4 w-4" />
+                          {item.reward} ETH Reward
                         </div>
-                        <Badge
-                          variant={
-                            item.status === "active" ? "default" : "secondary"
-                          }
-                          className="capitalize"
+                      )}
+                      {item.status === "active" && (
+                        <Button
+                          className="w-full"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            alert("Claiming feature coming soon!");
+                          }}
                         >
-                          {item.status}
-                        </Badge>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4 text-primary" />
-                            {item.location}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4 text-primary" />
-                            {item.date}
-                          </div>
-                        </div>
-                        {parseFloat(item.reward) > 0 && (
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4 text-green-500" />
-                            <span className="text-green-500 font-medium">
-                              {item.reward} ETH Reward
-                            </span>
-                          </div>
-                        )}
-                        {item.status === "active" && (
-                          <Button
-                            className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 group"
-                            onClick={() =>
-                              window.alert("Bounty claiming coming soon!")
-                            }
-                          >
-                            <Trophy className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />
-                            Claim Bounty
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </motion.div>
+                          Claim Bounty
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </motion.div>
     </div>
   );

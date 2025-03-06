@@ -32,7 +32,7 @@ declare global {
 }
 
 // Connect to Ethereum Provider
-const getEthereumContract = async (
+export const getEthereumContract = async (
   contractAddress: string,
   contractABI: any
 ): Promise<ethers.Contract | null> => {
@@ -137,37 +137,108 @@ export const submitLostItem = async (
 
 // Function to Submit a Found Item
 export const submitFoundItem = async (
-  name: string,
   description: string,
   location: string,
-  photo: string,
-  updateState: Function
+  contactInfo: string,
+  itemId: string
 ) => {
   try {
+    console.log("Submitting found item...");
+    console.log("Item details:", {
+      description,
+      location,
+      contactInfo,
+      itemId,
+    });
+
     const contract = await getEthereumContract(
       LOST_AND_FOUND_ADDRESS,
       LostAndFoundABI.abi
     );
-    if (!contract) return;
+    if (!contract) {
+      console.error("Failed to connect to contract");
+      return;
+    }
 
-    // Create a hash of the item data
-    const ipfsHash = createItemHash(name, description, location);
+    // Get the item details first to get the owner
+    const item = await contract.items(itemId);
+    if (!item || !item.owner) {
+      throw new Error("Item not found");
+    }
 
-    // Call the contract with just the hash
-    const tx = await contract.submitFoundItem(ipfsHash);
+    // Get the signer's address
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const signerAddress = await signer.getAddress();
+
+    // Create notification data
+    const notificationData = {
+      type: "FOUND_ITEM",
+      itemId,
+      finder: signerAddress,
+      owner: item.owner,
+      details: {
+        description,
+        location,
+        contactInfo,
+      },
+      timestamp: new Date().toISOString(),
+      status: "pending",
+    };
+
+    // Call the contract to mark the item as potentially found
+    console.log("Sending transaction to contract...");
+    const tx = await contract.submitFoundItem(itemId);
+    console.log("Transaction sent:", tx.hash);
+
+    console.log("Waiting for transaction confirmation...");
     const receipt = await tx.wait();
+    console.log("Transaction receipt:", receipt);
 
     if (receipt.status === 1) {
       console.log("Found item submitted successfully!");
-      alert("Found item submitted successfully!");
-      window.location.href = "/dashboard";
+      // Get the event from the logs
+      const event = receipt.logs.find(
+        (log: any) => log.eventName === "ItemFound"
+      );
+      if (event) {
+        const foundItemId = event.args[0];
+        console.log("Found item ID:", foundItemId.toString());
+
+        // Store the notification in localStorage
+        const notifications = JSON.parse(
+          localStorage.getItem("notifications") || "[]"
+        );
+
+        // Check if notification already exists
+        const existingNotificationIndex = notifications.findIndex(
+          (n: any) =>
+            n.itemId === itemId && n.finder === notificationData.finder
+        );
+
+        if (existingNotificationIndex === -1) {
+          // Add new notification
+          notifications.push(notificationData);
+        } else {
+          // Update existing notification
+          notifications[existingNotificationIndex] = {
+            ...notifications[existingNotificationIndex],
+            ...notificationData,
+          };
+        }
+
+        localStorage.setItem("notifications", JSON.stringify(notifications));
+        console.log("Notification stored successfully");
+      }
+
+      return true;
     } else {
       console.error("Transaction failed");
-      alert("Failed to submit found item.");
+      throw new Error("Failed to submit found item");
     }
   } catch (error) {
     console.error("Error submitting found item:", error);
-    alert("An error occurred while submitting the found item.");
+    throw error;
   }
 };
 
@@ -292,47 +363,49 @@ export const fetchAllLostItems = async (): Promise<any[]> => {
       return [];
     }
 
-    // Get all items from the contract
-    console.log("Getting item count...");
-    const itemCount = await contract.itemIdCounter();
-    console.log("Total items:", Number(itemCount));
+    // Get all lost item IDs using the contract's getAllLostItems function
+    console.log("Getting all lost items...");
+    const lostItemIds = await contract.getAllLostItems();
+    console.log("Total lost items:", lostItemIds.length);
 
-    // Get all items from the contract
-    console.log("Fetching items...");
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const network = await provider.getNetwork();
-    console.log("Current network:", network.chainId);
-    console.log("Contract address:", LOST_AND_FOUND_ADDRESS);
-
-    // Start from index 1 since 0 is not used
-    const itemIds = Array.from({ length: Number(itemCount) }, (_, i) => i + 1);
-    console.log("Item IDs to fetch:", itemIds);
-
+    // Fetch all items in parallel
     const items = await Promise.all(
-      itemIds.map(async (itemId) => {
+      lostItemIds.map(async (itemId: bigint) => {
         try {
           console.log(`Fetching item ${itemId}...`);
           const item = await contract.items(itemId);
           console.log(`Raw item ${itemId} data:`, item);
 
-          // Skip items with empty owner (means item doesn't exist)
-          if (item.owner === "0x0000000000000000000000000000000000000000") {
+          // Skip items with empty owner
+          if (
+            !item ||
+            item.owner === "0x0000000000000000000000000000000000000000"
+          ) {
             console.log(`Item ${itemId} has no owner, skipping`);
             return null;
           }
 
-          // Skip items with empty ipfsHash
-          if (!item.ipfsHash || item.ipfsHash === "") {
-            console.log(`Item ${itemId} has no ipfsHash, skipping`);
+          // Get item metadata from IPFS hash
+          const ipfsHash = item.ipfsHash;
+          if (!ipfsHash) {
+            console.log(`Item ${itemId} has no IPFS hash, skipping`);
             return null;
           }
 
-          const { name, description, location } = parseItemHash(item.ipfsHash);
-          console.log(`Decoded item ${itemId}:`, {
-            name,
-            description,
-            location,
-          });
+          // Try to parse the IPFS hash as base64 first
+          let metadata;
+          try {
+            const decoded = Buffer.from(ipfsHash, "base64").toString();
+            const [name, description, location] = decoded.split("::");
+            metadata = { name, description, location };
+          } catch (error) {
+            console.log(`Item ${itemId} using direct IPFS hash`);
+            metadata = {
+              name: `Item #${itemId}`,
+              description: "Description not available",
+              location: "Location not specified",
+            };
+          }
 
           // Get bounty amount if available
           let reward = "0";
@@ -353,14 +426,15 @@ export const fetchAllLostItems = async (): Promise<any[]> => {
 
           return {
             id: itemId.toString(),
-            name,
-            description,
-            location,
-            date: new Date().toISOString().split("T")[0],
+            name: metadata.name,
+            description: metadata.description,
+            location: metadata.location,
+            date: new Date().toISOString().split("T")[0], // Current date as fallback
             status: item.isFound ? "found" : "active",
             owner: item.owner,
             finder: item.finder,
             reward,
+            ipfsHash,
           };
         } catch (error) {
           console.error(`Error fetching item ${itemId}:`, error);
@@ -369,11 +443,10 @@ export const fetchAllLostItems = async (): Promise<any[]> => {
       })
     );
 
-    // Filter out any null items from failed fetches
+    // Filter out null items and sort by ID in descending order (newest first)
     const validItems = items.filter((item) => item !== null);
     console.log("Successfully fetched items:", validItems.length);
-    console.log("Valid items:", validItems);
-    return validItems;
+    return validItems.sort((a, b) => Number(b.id) - Number(a.id));
   } catch (error) {
     console.error("Error in fetchAllLostItems:", error);
     return [];

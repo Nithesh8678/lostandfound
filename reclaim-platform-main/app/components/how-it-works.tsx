@@ -46,9 +46,9 @@ const steps = [
   {
     icon: <Sparkles className="h-8 w-8" />,
     secondaryIcon: <Cpu className="h-6 w-6" />,
-    title: "AI-Powered Matching",
+    title: "Location Matching",
     description:
-      "Our AI matches lost items with found reports using image recognition and text analysis.",
+      "Our location matches lost items with found reports using live verification.",
     color: "from-green-500 to-emerald-400",
     glowColor: "group-hover:shadow-green-500/50",
     bgGlow: "group-hover:before:bg-green-500/10",
